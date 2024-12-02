@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Gladiators - Webcam Tire Damage Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-gray-800 to-black min-h-screen flex flex-col antialiased text-white">
+    <header class="bg-red-600 shadow-lg">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                    <span class="text-red-600 font-bold text-2xl">G</span>
+                </div>
+                <h1 class="text-2xl font-bold tracking-wide">Team Gladiators</h1>
+            </div>
+            <nav class="space-x-4">
+                <a href="/" class="text-white hover:text-red-200 transition">Home</a>
+                <a href="#" class="text-white hover:text-red-200 transition">Webcam</a>
+                <a href="#" class="text-white hover:text-red-200 transition">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8 flex-grow flex items-center justify-center">
+        <div class="max-w-4xl w-full bg-gray-800 shadow-2xl rounded-2xl p-8 border-2 border-gray-700">
+            <h2 class="text-4xl font-extrabold text-center mb-8 text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-yellow-500 drop-shadow-md">
+                Live Webcam Tire Damage Detection
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Webcam Feed -->
+                <div class="bg-gray-700 rounded-xl p-4 flex flex-col items-center justify-center">
+                    <div class="w-full aspect-video bg-gray-600 rounded-lg overflow-hidden shadow-lg">
+                        <video 
+                            id="webcamVideo" 
+                            autoplay 
+                            playsinline 
+                            class="w-full h-full object-cover transform transition-transform duration-300 hover:scale-105"
+                        ></video>
+                    </div>
+                    <div class="mt-4 w-full">
+                        <div class="flex space-x-4 justify-center">
+                            <button 
+                                id="startDetection" 
+                                class="bg-gradient-to-r from-green-600 to-teal-600 text-white px-6 py-3 rounded-full hover:from-green-700 hover:to-teal-700 transition-all duration-300 transform hover:scale-105"
+                            >
+                                Start Detection
+                            </button>
+                            <button 
+                                id="stopDetection" 
+                                class="bg-gradient-to-r from-red-600 to-pink-600 text-white px-6 py-3 rounded-full hover:from-red-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105"
+                                disabled
+                            >
+                                Stop Detection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Damage Results -->
+                <div class="bg-gray-700 rounded-xl p-6 flex flex-col">
+                    <h3 class="text-2xl font-bold mb-4 text-red-400 text-center">Detection Results</h3>
+                    <div 
+                        id="damageResults" 
+                        class="flex-grow bg-gray-800 rounded-lg p-4 flex items-center justify-center shadow-inner"
+                    >
+                        <p 
+                            id="damageStatus" 
+                            class="text-lg font-semibold text-center text-gray-300"
+                        >
+                            Waiting for detection...
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-red-600 py-6 text-white">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; 2024 Team Gladiators. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        const video = document.getElementById('webcamVideo');
+        const damageStatus = document.getElementById('damageStatus');
+        const startButton = document.getElementById('startDetection');
+        const stopButton = document.getElementById('stopDetection');
+
+        let stream = null;
+        let animationFrameId = null;
+        let isDetecting = false;
+
+        async function startWebcam() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+
+                // Wait for video metadata to load
+                await new Promise(resolve => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
+
+                startButton.disabled = true;
+                stopButton.disabled = false;
+
+                damageStatus.textContent = 'Webcam started. Press "Start Detection"';
+                damageStatus.classList.remove('text-red-500');
+                damageStatus.classList.add('text-green-400');
+            } catch (err) {
+                console.error("Error accessing webcam:", err);
+                damageStatus.textContent = 'Error accessing webcam. Please check permissions.';
+                damageStatus.classList.remove('text-green-400');
+                damageStatus.classList.add('text-red-500');
+            }
+        }
+
+        function stopWebcam() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+
+                startButton.disabled = false;
+                stopButton.disabled = true;
+
+                cancelAnimationFrame(animationFrameId);
+                isDetecting = false;
+
+                damageStatus.textContent = 'Webcam stopped.';
+                damageStatus.classList.remove('text-green-400');
+                damageStatus.classList.add('text-yellow-400');
+            }
+        }
+
+        async function processFrame(canvas) {
+            try {
+                // In a real application, you would send this to a backend
+                console.log('Frame processed:', canvas.toDataURL('image/jpeg'));
+                
+                // Simulated damage detection result
+                const simulatedResult = {
+                    damage_percentage: Math.random() * 100,
+                    damage_status: Math.random() > 0.5 ? 'Critical' : 'Normal'
+                };
+
+                const damagePercentage = simulatedResult.damage_percentage.toFixed(2);
+                const damageStatus = simulatedResult.damage_status;
+
+                document.getElementById('damageStatus').innerHTML = `
+                    <span class="text-red-400">Damage:</span> 
+                    <span class="font-bold ${damagePercentage > 50 ? 'text-red-500' : 'text-green-500'}">
+                        ${damagePercentage}%
+                    </span>
+                    <br>
+                    <span class="text-gray-300">Status:</span> 
+                    <span class="font-bold ${damageStatus === 'Critical' ? 'text-red-500' : 'text-yellow-500'}">
+                        ${damageStatus}
+                    </span>
+                `;
+            } catch (error) {
+                console.error('Error processing frame:', error);
+                damageStatus.textContent = 'Error in damage detection.';
+                damageStatus.classList.add('text-red-500');
+            }
+        }
+
+        function detectTireDamage() {
+            // Ensure video has valid dimensions before processing
+            if (!video.videoWidth || !video.videoHeight) {
+                console.warn('Video dimensions not ready');
+                return;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            processFrame(canvas);
+
+            // Continue detection if still active
+            if (isDetecting) {
+                animationFrameId = requestAnimationFrame(detectTireDamage);
+            }
+        }
+
+        function toggleDetection() {
+            isDetecting = !isDetecting;
+            if (isDetecting) {
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                damageStatus.textContent = 'Detecting tire damage...';
+                damageStatus.classList.remove('text-red-500', 'text-yellow-400');
+                damageStatus.classList.add('text-green-400');
+                detectTireDamage();
+            } else {
+                stopWebcam();
+            }
+        }
+
+        startButton.addEventListener('click', toggleDetection);
+        stopButton.addEventListener('click', toggleDetection);
+
+        // Initial webcam access
+        startWebcam();
+    </script>
+</body>
+</html>
